@@ -1,0 +1,108 @@
+import numpy as np, matplotlib.pyplot as plt, os
+from sklearn.linear_model import LinearRegression
+from matplotlib.animation import FuncAnimation
+
+# Data & model
+os.makedirs('output', exist_ok=True)
+X = np.linspace(0, 2*np.pi, 500).reshape(-1, 1)
+y = np.sin(X).ravel()
+model = LinearRegression().fit(X, y)
+y_pred = model.predict(X)
+
+# Plot
+plt.plot(X, y, label='sin(x)')
+plt.plot(X, y_pred, '--', label='Predicted')
+plt.legend(); plt.title('sin(x) vs Prediction'); plt.grid()
+plt.savefig('output/sin_plot.png'); plt.show()
+
+# Animation
+fig, ax = plt.subplots(); ax.set_xlim(0, 2*np.pi); ax.set_ylim(-1.2, 1.2)
+line, = ax.plot([], [], lw=2)
+def update(i): line.set_data(X[:i], y[:i]); return line,
+FuncAnimation(fig, update, frames=len(X), blit=True, interval=10).save('output/sin_animation.mp4', fps=60)
+
+
+
+import numpy as np, matplotlib.pyplot as plt, os
+from sklearn.datasets import load_iris
+from sklearn.tree import DecisionTreeClassifier
+
+X, y = load_iris(return_X_y=True)
+X = X[:, 2:4]  # petal length & width
+clf = DecisionTreeClassifier(max_depth=3).fit(X, y)
+
+def plot_boundary(clf, X, y):
+    xx, yy = np.meshgrid(np.linspace(X[:,0].min()-.5, X[:,0].max()+.5, 300),
+                         np.linspace(X[:,1].min()-.5, X[:,1].max()+.5, 300))
+    Z = clf.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
+    plt.contourf(xx, yy, Z, cmap='Pastel1', alpha=0.3)
+    for i, c in zip(np.unique(y), 'rgb'):
+        plt.scatter(*X[y==i].T, c=c, edgecolor='k', label=f'Class {i}')
+    add_splits(clf, *plt.xlim(), *plt.ylim())
+
+def add_splits(tree, x0, x1, y0, y1, node=0, d=0):
+    f, t = tree.tree_.feature[node], tree.tree_.threshold[node]
+    if f == -2: return
+    if f == 0: plt.plot([t]*2, [y0, y1], 'k--'); plt.text(t, y1, f'Depth {d}', fontsize=8)
+    if f == 1: plt.plot([x0, x1], [t]*2, 'k--'); plt.text(x1, t, f'Depth {d}', fontsize=8)
+    l, r = tree.tree_.children_left[node], tree.tree_.children_right[node]
+    if f == 0: add_splits(tree, x0, t, y0, y1, l, d+1); add_splits(tree, t, x1, y0, y1, r, d+1)
+    else: add_splits(tree, x0, x1, y0, t, l, d+1); add_splits(tree, x0, x1, t, y1, r, d+1)
+
+plot_boundary(clf, X, y)
+plt.xlabel('Petal length'); plt.ylabel('Petal width'); plt.title('Iris Tree Boundary')
+plt.legend(); plt.grid(); os.makedirs("output", exist_ok=True)
+plt.savefig("output/iris_tree_boundary.png"); plt.show()
+
+
+
+import matplotlib.pyplot as plt
+from sklearn.datasets import make_blobs
+from sklearn.cluster import KMeans
+
+# Parameters
+nb_obs, k, std, dim, seed = 1000, 2, 4, 2, 10
+
+# Generate synthetic data
+x, _ = make_blobs(n_samples=nb_obs, centers=k, cluster_std=std, n_features=dim, random_state=seed)
+
+# Fit KMeans
+model = KMeans(n_clusters=k, random_state=seed).fit(x)
+y = model.labels_
+
+# Plot clusters with custom color map
+plt.scatter(x[:, 0], x[:, 1], c=y, cmap='plasma')  # Changed from 'viridis' to 'plasma'
+plt.title(f'KMeans Clustering (k={k})'); plt.grid(True)
+plt.show()
+
+
+
+import numpy as np, matplotlib.pyplot as plt
+from tensorflow.keras.datasets import fashion_mnist
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Flatten
+from tensorflow.keras.utils import to_categorical
+
+# Load & preprocess data
+(x_train, y_train), (x_test, y_test) = fashion_mnist.load_data()
+x_train, x_test = x_train / 255.0, x_test / 255.0
+y_train, y_test = to_categorical(y_train), to_categorical(y_test)
+
+# Build & train model
+model = Sequential([Flatten(input_shape=(28,28)), Dense(128, activation='relu'), Dense(10, activation='softmax')])
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+model.fit(x_train, y_train, epochs=3, validation_split=0.1)
+
+# Activation functions and derivatives
+x = np.linspace(-5, 5, 200)
+sigmoid = lambda x: 1 / (1 + np.exp(-x))
+dsigmoid = lambda x: sigmoid(x)*(1 - sigmoid(x))
+tanh = np.tanh; dtanh = lambda x: 1 - tanh(x)**2
+relu = lambda x: np.maximum(0, x); drelu = lambda x: (x > 0).astype(float)
+
+# Plot activations
+fns = [(sigmoid, 'Sigmoid'), (tanh, 'Tanh'), (relu, 'ReLU')]
+dfs = [(dsigmoid, "dSigmoid"), (dtanh, "dTanh"), (drelu, "dReLU")]
+plt.figure(figsize=(10,5))
+for i, (fn, name) in enumerate(fns + dfs): plt.subplot(2,3,i+1); plt.plot(x, fn(x)); plt.title(name)
+plt.tight_layout(); plt.show()
